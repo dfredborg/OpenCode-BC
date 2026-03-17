@@ -28,6 +28,7 @@ Both options do the same thing. Option B uses the `/setup-bc` command that this 
 | **Microsoft Learn MCP** | Live documentation search from `learn.microsoft.com` available to the agent without leaving the terminal |
 | **`compile-alc` skill** | Teaches OpenCode how to compile AL apps directly via `alc.exe` — no BcContainerHelper, no Docker, no pipeline |
 | **`/compile-alc` command** | Slash-command that triggers a full AL compilation with a single prompt |
+| **`/review-bc` command** | Deep, brutally honest AL code review across the entire codebase — security, performance, upgrade safety, and more |
 | **`/setup-bc` command** | Re-run setup or set up a new project from inside OpenCode |
 | **`Compile-Alc.ps1` script** | The PowerShell driver behind the skill — works in any AL repo regardless of folder structure |
 
@@ -92,9 +93,10 @@ Step 2  Install AL LSP binaries
         SShadowS/al-lsp-for-agents into %LOCALAPPDATA%\al-lsp\bin.
         Skips the download if already on the latest version.
 
-Step 3  Copy .opencode/ assets into the target project
+        Step 3  Copy .opencode/ assets into the target project
         .opencode/skills/compile-alc/SKILL.md
         .opencode/commands/compile-alc.md
+        .opencode/commands/review-bc.md
         .opencode/commands/setup-bc.md
         .opencode/scripts/Compile-Alc.ps1
 
@@ -111,6 +113,7 @@ your-al-project/
 └── .opencode/
     ├── commands/
     │   ├── compile-alc.md               ← /compile-alc slash command
+    │   ├── review-bc.md                 ← /review-bc slash command
     │   └── setup-bc.md                  ← /setup-bc slash command
     ├── scripts/
     │   └── Compile-Alc.ps1              ← AL compiler driver
@@ -188,6 +191,29 @@ Without analyzers (compiler errors only):
 
 The command uses `alc.exe` from your installed AL Language extension directly. It auto-detects your `app.json`, `.alpackages/`, and any `rules.json` ruleset in the repository.
 
+### Deep code review
+
+Use the `/review-bc` command to run a full codebase audit:
+
+```
+/review-bc
+```
+
+The agent reads every `.al` file in the repository, cross-references Microsoft Learn documentation, and writes a structured report to `.opencode/reviews/review-YYYY-MM-DD.md` covering:
+
+- **Security** — hardcoded secrets, missing permission checks, unencrypted PII
+- **Standard BC coverage** — custom code that duplicates what BC already does natively
+- **Performance** — N+1 queries, missing `SetLoadFields`, `CalcFields` in loops
+- **Error handling** — swallowed errors, missing `TryFunction`, bad commit strategy
+- **Upgrade safety** — missing OnUpgrade codeunits, `ToBeClassified` fields, breaking changes
+- **AL code quality** — naming conventions, dead code, missing XML docs, suppressed warnings
+- **API design** — missing `APIVersion`/`ODataKeyFields`, over-permissive fields
+- **Integration patterns** — missing retry/timeout, secrets in table fields, hardcoded URLs
+- **Testing** — flags codebases with no test codeunits
+- **Translations** — missing labels, `MaxLength`, comment tags
+
+> **Note:** The review command is pre-configured for a specific project structure (apps: Core, Dataplatform, Documentoutput, ForNav, Integrationer, PaymentManagement). Edit `.opencode/commands/review-bc.md` to match your own app names and codebase path before running it.
+
 ### Setting up a new project from inside OpenCode
 
 If you are starting work on a new AL repository, just open it in OpenCode and run:
@@ -245,6 +271,7 @@ OpenCode-BC/
 └── Compile-alc/
     ├── command/
     │   ├── compile-alc.md        ← /compile-alc command definition
+    │   ├── review-bc.md          ← /review-bc command definition
     │   └── setup-bc.md           ← /setup-bc command definition
     ├── scripts/
     │   └── Compile-Alc.ps1       ← AL compiler PowerShell driver

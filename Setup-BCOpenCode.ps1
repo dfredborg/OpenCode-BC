@@ -285,14 +285,16 @@ if (-not $SkipAssets) {
 
     # Resolve source paths from the assets root (local or downloaded)
     $SrcSkill    = Join-Path $AssetsRoot 'Compile-alc\skills\compile-alc'
-    $SrcCommand  = Join-Path $AssetsRoot 'Compile-alc\command\compile-alc.md'
-    $SrcSetupCmd = Join-Path $AssetsRoot 'Compile-alc\command\setup-bc.md'
-    $SrcScript   = Join-Path $AssetsRoot 'Compile-alc\scripts\Compile-Alc.ps1'
+    $SrcCommand   = Join-Path $AssetsRoot 'Compile-alc\command\compile-alc.md'
+    $SrcSetupCmd  = Join-Path $AssetsRoot 'Compile-alc\command\setup-bc.md'
+    $SrcReviewCmd = Join-Path $AssetsRoot 'Compile-alc\command\review-bc.md'
+    $SrcScript    = Join-Path $AssetsRoot 'Compile-alc\scripts\Compile-Alc.ps1'
 
     $MissingAssets = @()
     if (-not (Test-Path (Join-Path $SrcSkill 'SKILL.md'))) { $MissingAssets += (Join-Path $SrcSkill 'SKILL.md') }
     if (-not (Test-Path $SrcCommand))                       { $MissingAssets += $SrcCommand }
     if (-not (Test-Path $SrcSetupCmd))                      { $MissingAssets += $SrcSetupCmd }
+    if (-not (Test-Path $SrcReviewCmd))                     { $MissingAssets += $SrcReviewCmd }
     if (-not (Test-Path $SrcScript))                        { $MissingAssets += $SrcScript }
 
     if ($MissingAssets.Count -gt 0) {
@@ -311,11 +313,12 @@ if (-not $SkipAssets) {
             Write-Info "Copied skill      : $DstSkillFile"
         }
 
-        # commands: compile-alc.md and setup-bc.md
+        # commands: compile-alc.md, setup-bc.md, review-bc.md
         Ensure-Dir $CommandsDir
         foreach ($CmdPair in @(
-            @{ Src = $SrcCommand;  Dst = (Join-Path $CommandsDir 'compile-alc.md') },
-            @{ Src = $SrcSetupCmd; Dst = (Join-Path $CommandsDir 'setup-bc.md') }
+            @{ Src = $SrcCommand;   Dst = (Join-Path $CommandsDir 'compile-alc.md') },
+            @{ Src = $SrcSetupCmd;  Dst = (Join-Path $CommandsDir 'setup-bc.md') },
+            @{ Src = $SrcReviewCmd; Dst = (Join-Path $CommandsDir 'review-bc.md') }
         )) {
             if ((Test-Path $CmdPair.Dst) -and -not $Force) {
                 Write-Info "Command already exists -- skipping: $($CmdPair.Dst) (use -Force to overwrite)."
