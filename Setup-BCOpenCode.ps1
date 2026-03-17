@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+#Requires -Version 5.1
 <#
 .SYNOPSIS
     OpenCode setup for Business Central AL development.
@@ -118,7 +118,9 @@ function Read-JsonFile([string]$Path) {
 
 function Write-JsonFile([string]$Path, [object]$Data) {
     $json = $Data | ConvertTo-Json -Depth 20
-    [System.IO.File]::WriteAllText($Path, $json, [System.Text.Encoding]::UTF8)
+    # UTF-8 without BOM -- OpenCode cannot parse files with a BOM
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($Path, $json, $utf8NoBom)
 }
 
 function Ensure-Dir([string]$Path) {
