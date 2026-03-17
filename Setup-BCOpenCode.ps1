@@ -250,11 +250,11 @@ if (-not $SkipLsp) {
 if (-not $SkipAssets) {
     Write-Header ".opencode/ assets"
 
-    # When run from a local clone we copy directly from $ScriptDir.
-    # When run remotely we download from GitHub.
+    $CleanTmpDir  = $null
+    $AssetsRoot   = $ScriptDir   # points to repo root when run locally
 
     if ($IsRemote) {
-        # Download repo zip from GitHub and extract assets from it
+        # irm|iex only downloads the .ps1 — fetch the full repo zip to get assets
         $AssetsZipUrl = 'https://github.com/dfredborg/OpenCode-BC/archive/refs/heads/main.zip'
         Write-Info "Downloading assets from GitHub ..."
 
@@ -272,76 +272,69 @@ if (-not $SkipAssets) {
         Write-Info "Extracting assets ..."
         Expand-Archive -Path $zipPath -DestinationPath $tmpDir -Force
 
-        # The zip extracts to a folder named <repo>-<branch>, e.g. OpenCode-BC-main
+        # GitHub zips extract to <repo>-<branch>/, e.g. OpenCode-BC-main/
         $extractedRoot = Get-ChildItem $tmpDir -Directory | Select-Object -First 1
-        if (-not $extractedRoot) { Stop-Setup "Could not find extracted repo directory in $tmpDir." }
+        if (-not $extractedRoot) { Stop-Setup "Could not find extracted directory in $tmpDir." }
 
-        $ScriptDir = $extractedRoot.FullName
-        Write-Info "Assets ready    : $ScriptDir"
-
-        # Fall through to the shared copy logic below
-        # (set a flag so we clean up afterwards)
+        $AssetsRoot  = $extractedRoot.FullName
         $CleanTmpDir = $tmpDir
-    } else {
-        $CleanTmpDir = $null
+        Write-Info "Assets ready    : $AssetsRoot"
     }
 
-    if ($true) {  # always run copy logic (remote path sets $ScriptDir above)
-        # Resolve asset source paths relative to this script
-        $SrcSkill      = Join-Path $ScriptDir 'Compile-alc\skills\compile-alc'
-        $SrcCommand    = Join-Path $ScriptDir 'Compile-alc\command\compile-alc.md'
-        $SrcSetupCmd   = Join-Path $ScriptDir 'Compile-alc\command\setup-bc.md'
-        $SrcScript     = Join-Path $ScriptDir 'Compile-alc\scripts\Compile-Alc.ps1'
+    # Resolve source paths from the assets root (local or downloaded)
+    $SrcSkill    = Join-Path $AssetsRoot 'Compile-alc\skills\compile-alc'
+    $SrcCommand  = Join-Path $AssetsRoot 'Compile-alc\command\compile-alc.md'
+    $SrcSetupCmd = Join-Path $AssetsRoot 'Compile-alc\command\setup-bc.md'
+    $SrcScript   = Join-Path $AssetsRoot 'Compile-alc\scripts\Compile-Alc.ps1'
 
-        $MissingAssets = @()
-        if (-not (Test-Path (Join-Path $SrcSkill 'SKILL.md'))) { $MissingAssets += $SrcSkill }
-        if (-not (Test-Path $SrcCommand))                       { $MissingAssets += $SrcCommand }
-        if (-not (Test-Path $SrcSetupCmd))                      { $MissingAssets += $SrcSetupCmd }
-        if (-not (Test-Path $SrcScript))                        { $MissingAssets += $SrcScript }
+    $MissingAssets = @()
+    if (-not (Test-Path (Join-Path $SrcSkill 'SKILL.md'))) { $MissingAssets += (Join-Path $SrcSkill 'SKILL.md') }
+    if (-not (Test-Path $SrcCommand))                       { $MissingAssets += $SrcCommand }
+    if (-not (Test-Path $SrcSetupCmd))                      { $MissingAssets += $SrcSetupCmd }
+    if (-not (Test-Path $SrcScript))                        { $MissingAssets += $SrcScript }
 
-        if ($MissingAssets.Count -gt 0) {
-            Write-Warn "Some source assets were not found (is the repo structure intact?):"
-            $MissingAssets | ForEach-Object { Write-Warn "  missing: $_" }
-            Write-Warn "Skipping .opencode/ asset copy. Run the script from the repository root."
+    if ($MissingAssets.Count -gt 0) {
+        Write-Warn "Some source assets were not found:"
+        $MissingAssets | ForEach-Object { Write-Warn "  missing: $_" }
+        Write-Warn "Skipping .opencode/ asset copy."
+    } else {
+        # skill: .opencode/skills/compile-alc/SKILL.md
+        $DstSkillDir  = Join-Path $SkillsDir 'compile-alc'
+        Ensure-Dir $DstSkillDir
+        $DstSkillFile = Join-Path $DstSkillDir 'SKILL.md'
+        if ((Test-Path $DstSkillFile) -and -not $Force) {
+            Write-Info "Skill already exists -- skipping (use -Force to overwrite)."
         } else {
-            # skill: .opencode/skills/compile-alc/SKILL.md
-            $DstSkillDir = Join-Path $SkillsDir 'compile-alc'
-            Ensure-Dir $DstSkillDir
-            $DstSkillFile = Join-Path $DstSkillDir 'SKILL.md'
-            if ((Test-Path $DstSkillFile) -and -not $Force) {
-                Write-Info "Skill already exists -- skipping (use -Force to overwrite)."
-            } else {
-                Copy-Item (Join-Path $SrcSkill 'SKILL.md') $DstSkillFile -Force
-                Write-Info "Copied skill      : $DstSkillFile"
-            }
+            Copy-Item (Join-Path $SrcSkill 'SKILL.md') $DstSkillFile -Force
+            Write-Info "Copied skill      : $DstSkillFile"
+        }
 
-            # commands: .opencode/commands/compile-alc.md and setup-bc.md
-            Ensure-Dir $CommandsDir
-            foreach ($CmdPair in @(
-                @{ Src = $SrcCommand;  Dst = (Join-Path $CommandsDir 'compile-alc.md') },
-                @{ Src = $SrcSetupCmd; Dst = (Join-Path $CommandsDir 'setup-bc.md') }
-            )) {
-                if ((Test-Path $CmdPair.Dst) -and -not $Force) {
-                    Write-Info "Command already exists -- skipping: $($CmdPair.Dst) (use -Force to overwrite)."
-                } else {
-                    Copy-Item $CmdPair.Src $CmdPair.Dst -Force
-                    Write-Info "Copied command    : $($CmdPair.Dst)"
-                }
-            }
-
-            # script: .opencode/scripts/Compile-Alc.ps1
-            Ensure-Dir $ScriptsDir
-            $DstScript = Join-Path $ScriptsDir 'Compile-Alc.ps1'
-            if ((Test-Path $DstScript) -and -not $Force) {
-                Write-Info "Script already exists -- skipping (use -Force to overwrite)."
+        # commands: compile-alc.md and setup-bc.md
+        Ensure-Dir $CommandsDir
+        foreach ($CmdPair in @(
+            @{ Src = $SrcCommand;  Dst = (Join-Path $CommandsDir 'compile-alc.md') },
+            @{ Src = $SrcSetupCmd; Dst = (Join-Path $CommandsDir 'setup-bc.md') }
+        )) {
+            if ((Test-Path $CmdPair.Dst) -and -not $Force) {
+                Write-Info "Command already exists -- skipping: $($CmdPair.Dst) (use -Force to overwrite)."
             } else {
-                Copy-Item $SrcScript $DstScript -Force
-                Write-Info "Copied script     : $DstScript"
+                Copy-Item $CmdPair.Src $CmdPair.Dst -Force
+                Write-Info "Copied command    : $($CmdPair.Dst)"
             }
+        }
+
+        # script: .opencode/scripts/Compile-Alc.ps1
+        Ensure-Dir $ScriptsDir
+        $DstScript = Join-Path $ScriptsDir 'Compile-Alc.ps1'
+        if ((Test-Path $DstScript) -and -not $Force) {
+            Write-Info "Script already exists -- skipping (use -Force to overwrite)."
+        } else {
+            Copy-Item $SrcScript $DstScript -Force
+            Write-Info "Copied script     : $DstScript"
         }
     }
 
-    # Clean up temp download directory if we fetched remotely
+    # Clean up temp download if we fetched remotely
     if ($CleanTmpDir -and (Test-Path $CleanTmpDir)) {
         Remove-Item -Recurse -Force $CleanTmpDir -ErrorAction SilentlyContinue
     }
