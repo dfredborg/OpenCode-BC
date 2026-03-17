@@ -1,0 +1,24 @@
+﻿{
+    "$schema":  "https://opencode.ai/config.json",
+    "mcp":  {
+                "microsoft.docs.mcp":  {
+                                           "type":  "remote",
+                                           "url":  "https://learn.microsoft.com/api/mcp",
+                                           "enabled":  true
+                                       }
+            },
+    "permission":  {
+                       "microsoft.docs.mcp_microsoft_docs_search":  "allow"
+                   },
+    "lsp":  {
+                "al":  {
+                           "command":  [
+                                           "C:/Users/DennisFredborg/AppData/Local/al-lsp/bin/al-lsp-wrapper.exe"
+                                       ],
+                           "extensions":  [
+                                              ".al",
+                                              ".dal"
+                                          ]
+                       }
+            }
+}
