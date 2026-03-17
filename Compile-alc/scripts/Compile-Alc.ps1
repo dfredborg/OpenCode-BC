@@ -152,7 +152,8 @@ function Find-RuleSet([string]$RepoRoot) {
     $found = Get-ChildItem $RepoRoot -Recurse -Filter 'rules.json' -File -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -notmatch '[\\/]node_modules[\\/]' } |
         Select-Object -First 1
-    return $found?.FullName
+    if ($found) { return $found.FullName }
+    return $null
 }
 
 # ---------------------------------------------------------------------------- #
@@ -160,12 +161,17 @@ function Find-RuleSet([string]$RepoRoot) {
 # ---------------------------------------------------------------------------- #
 
 Write-Step "Locating repository root"
-$repoRoot = git rev-parse --show-toplevel 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Fail "Not inside a git repository."
-    exit 1
+$gitResult = $null
+$ErrorActionPreference = 'SilentlyContinue'
+$gitResult = & git rev-parse --show-toplevel 2>&1
+$gitExit   = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+if ($gitExit -ne 0) {
+    Write-Warn "Not inside a git repository - using current directory as root."
+    $repoRoot = (Get-Location).Path
+} else {
+    $repoRoot = $gitResult.Trim().Replace('/', '\')
 }
-$repoRoot = $repoRoot.Trim().Replace('/', '\')
 Write-Ok "Repo root: $repoRoot"
 
 # ---------------------------------------------------------------------------- #
@@ -215,7 +221,7 @@ if (-not (Test-Path (Join-Path $projectDir 'app.json'))) {
     exit 1
 }
 if (-not (Test-Path $packageCachePath)) {
-    Write-Warn ".alpackages not found at $packageCachePath — compilation may fail if symbols are missing."
+    Write-Warn ".alpackages not found at $packageCachePath  - compilation may fail if symbols are missing."
 }
 
 New-Item -ItemType Directory -Path $resolvedOutFolder -Force | Out-Null
@@ -251,7 +257,7 @@ if (-not $NoAnalyzers) {
             $alcArgs += "/analyzer:$linterDll"
             Write-Ok "LinterCop: included"
         } else {
-            Write-Warn "LinterCop DLL not found in $analyzerDir — skipping."
+            Write-Warn "LinterCop DLL not found in $analyzerDir  - skipping."
             Write-Host "    Open VS Code to trigger the LinterCop download, then retry." -ForegroundColor Gray
         }
     }
@@ -260,7 +266,7 @@ if (-not $NoAnalyzers) {
         $alcArgs += "/ruleset:$ruleSetFile"
         Write-Ok "Ruleset : $ruleSetFile"
     } else {
-        Write-Warn "No rules.json found — running without ruleset."
+        Write-Warn "No rules.json found  - running without ruleset."
     }
 } else {
     Write-Warn "Analyzers disabled (-NoAnalyzers)"
@@ -305,7 +311,7 @@ if ($exitCode -eq 0) {
 } else {
     Write-Host ""
     Write-Host "------------------------------------------------------" -ForegroundColor Red
-    Write-Host "  Compilation failed — $($errors.Count) error(s)" -ForegroundColor Red
+    Write-Host "  Compilation failed  - $($errors.Count) error(s)" -ForegroundColor Red
     Write-Host "------------------------------------------------------" -ForegroundColor Red
     Write-Host ""
     $lines -split "`n" | Where-Object { $_.Trim() } | ForEach-Object {
