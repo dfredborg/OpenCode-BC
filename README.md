@@ -212,7 +212,7 @@ The agent reads every `.al` file in the repository, cross-references Microsoft L
 - **Testing** — flags codebases with no test codeunits
 - **Translations** — missing labels, `MaxLength`, comment tags
 
-> **Note:** The review command is pre-configured for a specific project structure (apps: Core, Dataplatform, Documentoutput, ForNav, Integrationer, PaymentManagement). Edit `.opencode/commands/review-bc.md` to match your own app names and codebase path before running it.
+> **Note:** The review command is fully dynamic — it discovers the repository root, all `app.json` files, app names, publisher, BC version, and object name prefix automatically from your codebase. No configuration needed before running it.
 
 ### Setting up a new project from inside OpenCode
 
